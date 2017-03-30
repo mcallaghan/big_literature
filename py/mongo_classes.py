@@ -17,3 +17,22 @@ class scopus_ref(Document):
     extra = StringField()
     doi = StringField()
     url = URLField()
+
+class similarity(Document):
+    wos_ut = StringField(required=True, max_length=50)
+    scopus_id = StringField(required=True, max_length=50,unique_with='wos_ut')
+    scopus_do = BooleanField(required=True, max_length=50)
+    wos_do = BooleanField(required=True, max_length=50)
+    do_match = BooleanField()
+    t_match = BooleanField()
+    jaccard = FloatField()
+    py_diff = IntField()
+    wc_diff = IntField()
+    wc = IntField()
+
+class match(Document):
+    scopus_id = StringField(required=True, max_length=50,unique_with='wos_ut')
+    wos_ut = StringField(required=True, max_length=50)
+    py_diff = IntField()
+    jaccard = FloatField()
+    wc_diff = IntField()

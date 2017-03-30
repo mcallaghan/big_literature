@@ -4,8 +4,8 @@ library(ggplot2)
 library(dplyr)
 
 mongo <- mongoDbConnect("mongoengine_documents", "localhost", 27017)
-output <- dbGetQuery(mongo, "similarity", '{"jaccard": {"$gt": 0.1 }}',0,limit=10000)
-output_do <- dbGetQuery(mongo, "similarity", '{"jaccard": {"$gt": 0.1 }, "scopus_do": true , "wos_do": true}',0,limit=10000)
+output <- dbGetQuery(mongo, "similarity", '{"jaccard": {"$gt": 0.1 }}',0,limit=1000000)
+output_do <- dbGetQuery(mongo, "similarity", '{"jaccard": {"$gt": 0.1 }, "scopus_do": true , "wos_do": true}',0,limit=1000000)
 matches <- dbGetQuery(mongo, "match", '{}',0,limit=350000)
 
 ########
@@ -18,6 +18,18 @@ ggplot(matches) +
 #######
 ## What's the PY_diff of matches? 
 ggplot(filter(matches,py_diff!=0)) +
+  geom_bar(
+    aes(py_diff)
+  )
+
+#######
+## What's the WC_diff of matches? 
+ggplot(filter(matches,py_diff!=0)) +
+  geom_bar(
+    aes(wc_diff)
+  )
+
+ggplot(filter(matches,wc_diff!=0)) +
   geom_bar(
     aes(py_diff)
   )
@@ -46,11 +58,11 @@ ggplot(output) +
 ######
 ## Where are all the missing DOs coming from?
 scop_results <- dbGetQueryForKeys(mongo,"scopus_doc", '{}','{"PY":1,"DO":1}',0,1000000)
-scop_results$DOT <- ifelse(scop_results$DO=="",F,T)
+scop_results$DOI_exists <- ifelse(scop_results$DO=="",F,T)
 
 ggplot(filter(scop_results,PY>1980)) +
   geom_bar(
-    aes(PY,fill=DOT)
+    aes(PY,fill=DOI_exists)
   )
 
 ########
@@ -60,7 +72,7 @@ ggplot(output) +
     aes(interaction(scopus_do,wos_do),jaccard)
   )
 
-
+lm(formula=jaccard~interaction(scopus_do,wos_do))
 
 output_do$py_diff_b <- ifelse(output_do$py_diff!=0,T,F)
 
@@ -70,7 +82,7 @@ ggplot(output_do) +
     aes(do_match,jaccard)
   ) +
   geom_jitter(
-    aes(do_match,jaccard,colour=py_diff_b)
+    aes(do_match,jaccard,colour=py_diff_b),size=0.1
   )
 
 
@@ -78,5 +90,19 @@ scop_results_PY <- scop_results %>%
   group_by(PY) %>%
   summarise(n=n())
 
+output_do$match <- ifelse(output_do$do_match,1,0)
+
+l1 <- glm(formula=match ~ jaccard, family = binomial(link = "logit"),data=output_do)
+l2 <- glm(formula=match ~ jaccard+wc_diff, family = binomial(link = "logit"),data=output_do)
+# Want to do one for absolute word length times jaccard
+l3 <- glm(formula=match ~ jaccard+wc_diff+jaccard*wc_diff, family = binomial(link = "logit"),data=output_do)
+
+summary(l1)
+summary(l2)
+summary(l3)
+
+plot(l3)
+
+l1
 
 
